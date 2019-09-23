@@ -149,7 +149,7 @@ def checker():
             global stamp_checker
             global post
             stamp_checker = int(datetime.now().timestamp())
-            sleep(5)
+            sleep(1)
             text = requests.get(adress + str(post) + '?embed=1')
             soup = BeautifulSoup(text.text, 'html.parser')
             is_post_not_exist = str(soup.find('div', class_='tgme_widget_message_error'))
@@ -214,7 +214,7 @@ def checker():
                             bot.send_message(idMe, letter, parse_mode='HTML', disable_web_page_preview=True)
                         try:
                             bot.send_message(idChannel, letter, parse_mode='HTML', disable_web_page_preview=True)
-                            sleep(2)
+                            sleep(4)
                             post += 1
                             try:
                                 start_editing = '<b>' + server + ':</b> <code>' + \
