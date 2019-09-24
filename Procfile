@@ -1,1 +1,1 @@
-worker: python bitva-checker.py
+worker: python forwarding.py
