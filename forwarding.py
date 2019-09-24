@@ -378,7 +378,7 @@ def repeat_all_messages(message):
                 temps = copy.copy(array)
             print(temps)
             for i in temps:
-                print(i)
+                print(str(i) + ': ' + str(temps.get(i)))
     else:
         try:
             logarray = logdata(message)
