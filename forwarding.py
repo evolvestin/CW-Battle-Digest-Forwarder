@@ -388,16 +388,21 @@ def creategooglerow():
             stamp_creategooglerow = int(datetime.now().timestamp())
             sleep(5)
             try:
+                temp = copy.copy(array)
+            except:
+                sleep(2)
+                temp = copy.copy(array)
+            try:
                 g_ids = data.col_values(2)
             except:
                 creds = ServiceAccountCredentials.from_json_keyfile_name('forwarding.json', scope)
                 client = gspread.authorize(creds)
                 data = client.open('FORWARDING').worksheet('main')
                 g_ids = data.col_values(2)
-            for i in array:
+            for i in temp:
                 if str(i) not in g_ids:
                     stamp_creategooglerow = int(datetime.now().timestamp())
-                    data.insert_row([array.get(i), i], 2)
+                    data.insert_row([temp.get(i), i], 2)
                     sleep(5)
         except IndexError and Exception as e:
             thread_name = 'creategooglerow'
@@ -413,7 +418,7 @@ def starter():
             print(thread_name + 'начало')
             now = int(datetime.now().timestamp()) - 100
             if now > stamp_creategooglerow:
-                _thread.start_new_thread(stamp_creategooglerow, ())
+                _thread.start_new_thread(creategooglerow, ())
                 print('запуск stamp_checker')
             print(thread_name + 'конец')
             sleep(100)
