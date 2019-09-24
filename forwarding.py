@@ -368,16 +368,27 @@ def redmessages(message):
 
 
 @bot.message_handler(func=lambda message: message.text)
-def repeat_allmessages(message):
-    try:
-        logarray = logdata(message)
-        logtext = re.sub('<', '&lt;', message.text)
-        logtext = re.sub('>', '&gt;', logtext)
-        logtext = re.sub('\n', logarray[1], logtext)
-        bot.send_message(idChannelDump, logarray[0] + logtext, parse_mode='HTML')
-    except IndexError and Exception as e:
-        thread_name = 'repeat_all_messages'
-        executive(e, thread_name, str(message))
+def repeat_all_messages(message):
+    if message.chat.id == idMe:
+        if str(message.text).startswith('/log'):
+            try:
+                temps = copy.copy(array)
+            except:
+                sleep(2)
+                temps = copy.copy(array)
+            print(temps)
+            for i in temps:
+                print(i)
+    else:
+        try:
+            logarray = logdata(message)
+            logtext = re.sub('<', '&lt;', message.text)
+            logtext = re.sub('>', '&gt;', logtext)
+            logtext = re.sub('\n', logarray[1], logtext)
+            bot.send_message(idChannelDump, logarray[0] + logtext, parse_mode='HTML')
+        except IndexError and Exception as e:
+            thread_name = 'repeat_all_messages'
+            executive(e, thread_name, str(message))
 
 
 def creategooglerow():
