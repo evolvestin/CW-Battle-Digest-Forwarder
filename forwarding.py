@@ -123,8 +123,7 @@ def executive(e, name, message):
 def logdata(message):
     global data
     global encode
-    stamp = int(datetime.now().timestamp())
-    data = logtime(stamp)
+    data = logtime(message.date)
     pr = ''
     encode = ''
     if message != 0:
