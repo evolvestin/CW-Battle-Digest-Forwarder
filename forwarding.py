@@ -11,6 +11,7 @@ import unicodedata
 from time import sleep
 from datetime import datetime
 from unidecode import unidecode
+from collections import defaultdict
 from oauth2client.service_account import ServiceAccountCredentials
 
 stamp1 = int(datetime.now().timestamp())
@@ -23,24 +24,30 @@ bot = telebot.TeleBot(tkn)
 
 g_users = data.col_values(1)
 g_ids = data.col_values(2)
+g_block = data.col_values(3)
 g_users.pop(0)
 g_ids.pop(0)
+g_block.pop(0)
 
 idChannelForward = -1001449490549
 idChannelMedia = -1001273330143
 idChannelMain = -1001492730228
 idChannelDump = -1001200576139
+array = defaultdict(dict)
 botname = 'CWDailyBot'
 idMe = 396978030
 server = 'CW3'
-array = {}
+
 
 to_chat = '<code>//</code><b>Promote bot to admin just in case and press:</b>\n' \
           '<code>//</code><b>Дайте боту права администратора на всякий случай и нажмите:</b>\n' \
           '/reg@' + botname
 
 for i in g_ids:
-    array.update({int(i): g_users[g_ids.index(i)]})
+    array[int(i)] = defaultdict(dict)
+    array[int(i)]['name'] = g_users[g_ids.index(i)]
+    array[int(i)]['block'] = g_block[g_ids.index(i)]
+    array[int(i)]['update'] = 0
 # ====================================================================================
 
 
@@ -121,6 +128,9 @@ def logdata(message):
     pr = ''
     encode = ''
     if message != 0:
+        if str(array[message.chat.id]['block']) == '🅾️':
+            array[message.chat.id]['block'] = '⚠️'
+            array[message.chat.id]['update'] = 1
         encode = message
         try:
             kind = message.chat
@@ -143,6 +153,9 @@ def logdata(message):
             if message.chat.title:
                 title = str(message.chat.title) + ' '
                 title = re.sub('[<>]', '', title)
+                if str(array[message.chat.id]['name']) != message.chat.title:
+                    array[message.chat.id]['name'] = message.chat.title
+                    array[message.chat.id]['update'] = 1
             if message.chat.username:
                 chat_user = str(message.chat.username)
             chat_id = str(message.chat.id)
@@ -150,6 +163,12 @@ def logdata(message):
             tl = '     '
             pr = '     '
         else:
+            username = '@'
+            if message.chat.username:
+                username = '@' + message.chat.username
+            if str(array[message.chat.id]['name']) != username:
+                array[message.chat.id]['name'] = username
+                array[message.chat.id]['update'] = 1
             chat = ''
             pr = ''
             tl = ''
@@ -285,13 +304,23 @@ def repeat_channel_messages(message):
         temp = copy.copy(array)
     try:
         if message.chat.id == idChannelMain:
+            stamp1 = int(datetime.now().timestamp())
+            chat = 0
             for i in temp:
                 try:
-                    bot.forward_message(i, idChannelMain, message.message_id)
+                    if str(temp[i]['block']) == '✅' or str(temp[i]['block']) == '⚠️':
+                        bot.forward_message(i, idChannelMain, message.message_id)
+                        chat += 1
                 except:
-                    logtext = '<b>BOT</b> [@' + botname + ']:\n<code>&#62;&#62;</code> ' + \
-                              '<b>Не доставлено:</b> <code>' + str(i) + '</code> ' + array.get(i)
+                    array[i]['block'] = '🅾️'
+                    array[i]['update'] = 1
+                    logarray = logdata(0)
+                    logtext = logarray[0] + '<b>BOT</b> [@' + botname + ']:\n<code>&#62;&#62;</code> ' + \
+                        '<b>Не доставлено:</b> <code>' + str(i) + '</code> ' + str(temp[i]['name'])
                     bot.send_message(idChannelDump, logtext, parse_mode='HTML')
+            stamp2 = int(datetime.now().timestamp())
+            bot.send_message(idMe, '<b>Отправка сводок:</b>\n<b>1.</b> ' + logtime(stamp1) + '\n<b>' +
+                             str(chat) + '.</b> ' + logtime(stamp2), parse_mode='HTML')
 
     except IndexError and Exception as e:
         thread_name = 'repeat_channel_messages'
@@ -305,12 +334,17 @@ def handle_reg_command(message):
         text = '✅'
         if message.chat.id not in array:
             name = 'None'
+            if message.chat.id > 0:
+                name = '@'
+                if message.chat.username:
+                    name = '@' + str(message.chat.username)
             if message.chat.title:
                 name = str(message.chat.title)
-            if message.chat.username:
-                name = str(message.chat.username)
             name = re.sub('[<>]', '', name)
-            array.update({message.chat.id: name})
+            array[message.chat.id] = defaultdict(dict)
+            array[message.chat.id]['name'] = name
+            array[message.chat.id]['block'] = '✅'
+            array[message.chat.id]['update'] = 0
             logtext += ' <b>[Впервые]</b>'
         else:
             text += '♿♿'
@@ -378,7 +412,7 @@ def repeat_all_messages(message):
                 temps = copy.copy(array)
             print(temps)
             for i in temps:
-                print(str(i) + ': ' + str(temps.get(i)))
+                print(str(i) + ': ' + str(temps[i]['name']) + ' [' + str(temps[i]['block']) + ']')
     else:
         try:
             logarray = logdata(message)
@@ -413,8 +447,27 @@ def creategooglerow():
             for i in temp:
                 if str(i) not in g_ids:
                     stamp_creategooglerow = int(datetime.now().timestamp())
-                    data.insert_row([temp.get(i), i], 2)
+                    data.insert_row([str(temp[i]['name']), i, str(temp[i]['block'])], 2)
                     sleep(5)
+
+            stamp_creategooglerow = int(datetime.now().timestamp())
+            g_ids = data.col_values(2)
+            for i in temp:
+                if temp[i]['update'] == 1:
+                    stamp_creategooglerow = int(datetime.now().timestamp())
+                    row = str(g_ids.index(str(i)) + 1)
+                    try:
+                        cell_list = data.range('A' + row + ':C' + row)
+                        cell_list[0].value = str(temp[i]['name'])
+                        cell_list[1].value = i
+                        cell_list[2].value = str(temp[i]['block'])
+                        data.update_cells(cell_list)
+                    except IndexError and Exception as e:
+                        thread_name = 'creategooglerow (шаг обновления)'
+                        executive(e, thread_name, 0)
+                    sleep(2)
+            sleep(1)
+
         except IndexError and Exception as e:
             thread_name = 'creategooglerow'
             executive(e, thread_name, 0)
@@ -451,3 +504,4 @@ if __name__ == '__main__':
     _thread.start_new_thread(creategooglerow, ())
     _thread.start_new_thread(starter, ())
     telepol()
+
