@@ -121,17 +121,13 @@ def executive(e, name, message):
 
 
 def logdata(message):
-    global data
-    global encode
     data = logtime(message.date)
     pr = ''
-    encode = ''
     if message != 0:
         if message.chat.id in array:
             if str(array[message.chat.id]['block']) == '🅾️':
                 array[message.chat.id]['block'] = '⚠️'
                 array[message.chat.id]['update'] = 1
-        encode = message
         try:
             kind = message.chat
             if message.chat.id < 0:
@@ -430,7 +426,7 @@ def repeat_all_messages(message):
 def creategooglerow():
     while True:
         try:
-            global data
+            global dater
             global stamp_creategooglerow
             stamp_creategooglerow = int(datetime.now().timestamp())
             sleep(5)
@@ -508,3 +504,4 @@ if __name__ == '__main__':
     _thread.start_new_thread(creategooglerow, ())
     _thread.start_new_thread(starter, ())
     telepol()
+
