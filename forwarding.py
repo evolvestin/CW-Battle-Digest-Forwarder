@@ -18,13 +18,13 @@ stamp1 = int(datetime.now().timestamp())
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 creds = ServiceAccountCredentials.from_json_keyfile_name('forwarding.json', scope)
 client = gspread.authorize(creds)
-dater = client.open('FORWARDING').worksheet('main')
+data = client.open('FORWARDING').worksheet('main')
 tkn = '913645382:AAHJaL1PxvGQVkJcn7mLvhQzmQpxgBcfJpE'  # CWDailyBot (@CWDailyBot)
 bot = telebot.TeleBot(tkn)
 
-g_users = dater.col_values(1)
-g_ids = dater.col_values(2)
-g_block = dater.col_values(3)
+g_users = data.col_values(1)
+g_ids = data.col_values(2)
+g_block = data.col_values(3)
 g_users.pop(0)
 g_ids.pop(0)
 g_block.pop(0)
@@ -440,30 +440,30 @@ def creategooglerow():
                 sleep(2)
                 temp = copy.copy(array)
             try:
-                g_ids = dater.col_values(2)
+                g_ids = data.col_values(2)
             except:
                 creds = ServiceAccountCredentials.from_json_keyfile_name('forwarding.json', scope)
                 client = gspread.authorize(creds)
-                dater = client.open('FORWARDING').worksheet('main')
-                g_ids = dater.col_values(2)
+                data = client.open('FORWARDING').worksheet('main')
+                g_ids = data.col_values(2)
             for i in temp:
                 if str(i) not in g_ids:
                     stamp_creategooglerow = int(datetime.now().timestamp())
-                    dater.insert_row([str(temp[i]['name']), i, str(temp[i]['block'])], 2)
+                    data.insert_row([str(temp[i]['name']), i, str(temp[i]['block'])], 2)
                     sleep(5)
 
             stamp_creategooglerow = int(datetime.now().timestamp())
-            g_ids = dater.col_values(2)
+            g_ids = data.col_values(2)
             for i in temp:
                 if temp[i]['update'] == 1:
                     stamp_creategooglerow = int(datetime.now().timestamp())
                     row = str(g_ids.index(str(i)) + 1)
                     try:
-                        cell_list = dater.range('A' + row + ':C' + row)
+                        cell_list = data.range('A' + row + ':C' + row)
                         cell_list[0].value = str(temp[i]['name'])
                         cell_list[1].value = i
                         cell_list[2].value = str(temp[i]['block'])
-                        dater.update_cells(cell_list)
+                        data.update_cells(cell_list)
                         array[i]['update'] = 0
                     except IndexError and Exception as e:
                         thread_name = 'creategooglerow (шаг обновления)'
@@ -508,4 +508,3 @@ if __name__ == '__main__':
     _thread.start_new_thread(creategooglerow, ())
     _thread.start_new_thread(starter, ())
     telepol()
-
