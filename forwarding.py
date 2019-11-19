@@ -482,7 +482,8 @@ def starter():
             now = int(datetime.now().timestamp()) - 100
             if now > stamp_creategooglerow:
                 _thread.start_new_thread(creategooglerow, ())
-                print('запуск stamp_checker')
+                bot.send_message(idMe, 'запуск creategooglerow')
+                print('запуск creategooglerow')
             print(thread_name + 'конец')
             sleep(100)
         except IndexError and Exception as e:
