@@ -14,8 +14,8 @@ start_link = 'https://t.me/UsefullCWLinks/4?embed=1'
 adress = 'https://t.me/ChatWarsDigest/'
 title = '<b>⛳️Сводки с полей:</b>\n'
 idChannel = -1001492730228
-server = 'CW3'
 idMe = 396978030
+server = 'CW3'
 post = 0
 
 start_text = requests.get(start_link)
@@ -149,11 +149,11 @@ def checker():
             global stamp_checker
             global post
             stamp_checker = int(datetime.now().timestamp())
-            sleep(1)
+            sleep(0.1)
             text = requests.get(adress + str(post) + '?embed=1')
             soup = BeautifulSoup(text.text, 'html.parser')
-            is_post_not_exist = str(soup.find('div', class_='tgme_widget_message_error'))
-            if str(is_post_not_exist) == str(None):
+            is_post_exist = str(soup.find('div', class_='tgme_widget_message_text js-message_text'))
+            if str(is_post_exist) != 'None':
                 print('работаю ' + adress + str(post))
                 soup = str(soup.find('div', class_='tgme_widget_message_text js-message_text'))
                 time_search = re.search('(\d\d) (.*) 10(..).*Результаты сражений:', soup)
