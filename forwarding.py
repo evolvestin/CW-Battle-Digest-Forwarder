@@ -164,12 +164,12 @@ def logdata(message):
             tl = '     '
             pr = '     '
         else:
-            username = '@'
+            name = '@'
             if message.chat.username:
-                username = '@' + message.chat.username
+                name += message.chat.username
             if message.chat.id in array:
                 if str(array[message.chat.id]['name']) != username:
-                    array[message.chat.id]['name'] = username
+                    array[message.chat.id]['name'] = name
                     array[message.chat.id]['update'] = 1
             chat = ''
             pr = ''
