@@ -127,9 +127,10 @@ def logdata(message):
     pr = ''
     encode = ''
     if message != 0:
-        if str(array[message.chat.id]['block']) == '🅾️':
-            array[message.chat.id]['block'] = '⚠️'
-            array[message.chat.id]['update'] = 1
+        if message.chat.id in array:
+            if str(array[message.chat.id]['block']) == '🅾️':
+                array[message.chat.id]['block'] = '⚠️'
+                array[message.chat.id]['update'] = 1
         encode = message
         try:
             kind = message.chat
@@ -152,9 +153,10 @@ def logdata(message):
             if message.chat.title:
                 title = str(message.chat.title) + ' '
                 title = re.sub('[<>]', '', title)
-                if str(array[message.chat.id]['name']) != message.chat.title:
-                    array[message.chat.id]['name'] = message.chat.title
-                    array[message.chat.id]['update'] = 1
+                if message.chat.id in array:
+                    if str(array[message.chat.id]['name']) != message.chat.title:
+                        array[message.chat.id]['name'] = message.chat.title
+                        array[message.chat.id]['update'] = 1
             if message.chat.username:
                 chat_user = str(message.chat.username)
             chat_id = str(message.chat.id)
@@ -165,9 +167,10 @@ def logdata(message):
             username = '@'
             if message.chat.username:
                 username = '@' + message.chat.username
-            if str(array[message.chat.id]['name']) != username:
-                array[message.chat.id]['name'] = username
-                array[message.chat.id]['update'] = 1
+            if message.chat.id in array:
+                if str(array[message.chat.id]['name']) != username:
+                    array[message.chat.id]['name'] = username
+                    array[message.chat.id]['update'] = 1
             chat = ''
             pr = ''
             tl = ''
