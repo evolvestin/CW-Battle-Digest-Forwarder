@@ -464,6 +464,7 @@ def creategooglerow():
                         cell_list[1].value = i
                         cell_list[2].value = str(temp[i]['block'])
                         data.update_cells(cell_list)
+                        array[i]['update'] = 0
                     except IndexError and Exception as e:
                         thread_name = 'creategooglerow (шаг обновления)'
                         executive(e, thread_name, 0)
