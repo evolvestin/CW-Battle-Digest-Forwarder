@@ -38,7 +38,6 @@ botname = 'CWDailyBot'
 idMe = 396978030
 server = 'CW3'
 
-
 to_chat = '<code>//</code><b>Promote bot to admin just in case and press:</b>\n' \
           '<code>//</code><b>Дайте боту права администратора на всякий случай и нажмите:</b>\n' \
           '/reg@' + botname
@@ -304,23 +303,24 @@ def repeat_channel_messages(message):
         temp = copy.copy(array)
     try:
         if message.chat.id == idChannelMain:
-            stamp1 = int(datetime.now().timestamp())
-            chat = 0
-            for i in temp:
-                try:
-                    if str(temp[i]['block']) == '✅' or str(temp[i]['block']) == '⚠️':
-                        bot.forward_message(i, idChannelMain, message.message_id)
-                        chat += 1
-                except:
-                    array[i]['block'] = '🅾️'
-                    array[i]['update'] = 1
-                    logarray = logdata(0)
-                    logtext = logarray[0] + '<b>BOT</b> [@' + botname + ']:\n<code>&#62;&#62;</code> ' + \
-                        '<b>Не доставлено:</b> <code>' + str(i) + '</code> ' + str(temp[i]['name'])
-                    bot.send_message(idChannelDump, logtext, parse_mode='HTML')
-            stamp2 = int(datetime.now().timestamp())
-            bot.send_message(idMe, '<b>Отправка сводок:</b>\n<b>1.</b> ' + logtime(stamp1) + '\n<b>' +
-                             str(chat) + '.</b> ' + logtime(stamp2), parse_mode='HTML')
+            if (int(datetime.now().timestamp()) - int(message.date)) < 1800:
+                stamp1 = int(datetime.now().timestamp())
+                chat = 0
+                for i in temp:
+                    try:
+                        if str(temp[i]['block']) == '✅' or str(temp[i]['block']) == '⚠️':
+                            bot.forward_message(i, idChannelMain, message.message_id)
+                            chat += 1
+                    except:
+                        array[i]['block'] = '🅾️'
+                        array[i]['update'] = 1
+                        logarray = logdata(0)
+                        logtext = logarray[0] + '<b>BOT</b> [@' + botname + ']:\n<code>&#62;&#62;</code> ' + \
+                            '<b>Не доставлено:</b> <code>' + str(i) + '</code> ' + str(temp[i]['name'])
+                        bot.send_message(idChannelDump, logtext, parse_mode='HTML')
+                stamp2 = int(datetime.now().timestamp())
+                bot.send_message(idMe, '<b>Отправка сводок:</b>\n<b>1.</b> ' + logtime(stamp1) + '\n<b>' +
+                                 str(chat) + '.</b> ' + logtime(stamp2), parse_mode='HTML')
 
     except IndexError and Exception as e:
         thread_name = 'repeat_channel_messages'
@@ -378,7 +378,6 @@ def get_new_member(message):
                     bot.send_message(message.chat.id, to_chat, parse_mode='HTML')
                 except:
                     logtext = logtext + '<b>[Не отправлено]</b>'
-
                 logarray = logdata(message)
                 logtext = logarray[0] + logtext
                 bot.send_message(idChannelDump, logtext, parse_mode='HTML')
@@ -447,7 +446,7 @@ def creategooglerow():
             for i in temp:
                 if str(i) not in g_ids:
                     stamp_creategooglerow = int(datetime.now().timestamp())
-                    dater.insert_row([str(temp[i]['name']), i, str(temp[i]['block'])], 2)
+                    dater.insert_row([str(temp[i]['name']), i, str(temp[i]['block'])], 4)
                     sleep(5)
 
             stamp_creategooglerow = int(datetime.now().timestamp())
@@ -506,3 +505,4 @@ if __name__ == '__main__':
     _thread.start_new_thread(creategooglerow, ())
     _thread.start_new_thread(starter, ())
     telepol()
+
