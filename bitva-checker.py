@@ -15,7 +15,7 @@ start_link = 'https://t.me/UsefullCWLinks/4?embed=1'
 adress = 'https://t.me/ChatWarsDigest/'
 title = '<b>⛳️Сводки с полей:</b>\n'
 adress2 = 'https://t.me/CWDigest/'
-idChannel = -1001161297046# -1001492730228
+idChannel = -1001492730228
 idMe = 396978030
 server = 'CW3'
 post = 0
