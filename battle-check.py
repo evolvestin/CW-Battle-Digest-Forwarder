@@ -1,5 +1,6 @@
 import re
 import sys
+import time
 import _thread
 import telebot
 import requests
@@ -13,7 +14,8 @@ stamp1 = int(datetime.now().timestamp())
 start_link = 'https://t.me/UsefullCWLinks/4?embed=1'
 adress = 'https://t.me/ChatWarsDigest/'
 title = '<b>⛳️Сводки с полей:</b>\n'
-idChannel = -1001492730228
+adress2 = 'https://t.me/CWDigest/'
+idChannel = -1001161297046# -1001492730228
 idMe = 396978030
 server = 'CW3'
 post = 0
@@ -22,10 +24,12 @@ start_text = requests.get(start_link)
 start = BeautifulSoup(start_text.text, 'html.parser')
 start = str(start.find('div', class_='tgme_widget_message_text js-message_text'))
 start = re.sub('(<b>|</b>|<code>|</code>|</div>)', '', start)
-start_srch = re.search(server + ': (\d+) :' + server, start)
+start_srch = re.search(server + ': (\d+) :' + server + '<br/>mini: (\d+) :mini<br/>d: (.*) :d', start)
 
 if start_srch:
     post = int(start_srch.group(1))
+    mpost = int(start_srch.group(2))
+    lastdate = start_srch.group(3)
     tkn = '512299506:AAGwDkft8yr0dSknOC8gCdf_cFU6civ3jls'
     bot = telebot.TeleBot(tkn)
     start_message = bot.send_message(idMe, '🧠', parse_mode='HTML')
@@ -129,8 +133,13 @@ def timer(search):
         years = datetime.utcfromtimestamp(int(stack + 3 * 60 * 60)).strftime('%Y')
         hours = datetime.utcfromtimestamp(int(stack + 3 * 60 * 60)).strftime('%H')
         minutes = datetime.utcfromtimestamp(int(stack)).strftime('%M')
-        time = '<i>' + str(day) + '/' + str(month) + '/' + str(years) + ' ' + str(hours) + ':' + str(minutes) + '</i>'
+        time = str(day) + '/' + str(month) + '/' + str(years) + ' ' + str(hours) + ':' + str(minutes)
         return time
+
+
+def stamper(date):
+    stack = int(time.mktime(datetime.strptime(date, '%d/%m/%Y %H:%M').timetuple()))
+    return stack
 
 
 def executive(name):
@@ -143,11 +152,40 @@ def executive(name):
     _thread.exit()
 
 
+def sender(text, date, type):
+    global lastdate
+    global mpost
+    global post
+    try:
+        bot.send_message(idChannel, text, parse_mode='HTML', disable_web_page_preview=True)
+        sleep(4)
+        if type == 'main':
+            post += 1
+        else:
+            mpost += 1
+        lastdate = date
+        try:
+            start_editing = '<b>' + server + ':</b> <code>' + str(post) + '</code> :<b>' + server + '</b>\n' + \
+                            '<b>mini:</b> <code>' + str(mpost) + '</code> <b>:mini</b>\n' + \
+                            '<b>d:</b> <code>' + str(lastdate) + '</code> <b>:d</b>'
+            bot.edit_message_text(start_editing, -1001471643258, 4, parse_mode='HTML')
+        except:
+            error = '<b>Проблемы с измением стартового ' \
+                    'сообщения на канале @UsefullCWLinks</b>\n\n' + text
+            bot.send_message(idMe, error, parse_mode='HTML', disable_web_page_preview=True)
+    except:
+        error = '<b>Проблемы с отправкой на канал, перезапускаю</b>\n\n' + text
+        bot.send_message(idMe, error, parse_mode='HTML', disable_web_page_preview=True)
+        _thread.exit()
+
+
 def checker():
     while True:
         try:
             global stamp_checker
             global post
+            global mpost
+            global lastdate
             stamp_checker = int(datetime.now().timestamp())
             sleep(0.1)
             text = requests.get(adress + str(post) + '?embed=1')
@@ -197,6 +235,7 @@ def checker():
                     if trophy_search:
                         stamp_checker = int(datetime.now().timestamp())
                         trophy = re.split('<br/>', trophy_search.group(1))
+                        date = timer(time_search)
                         for i in trophy:
                             castle_tr = re.sub('(<b>|</b>|<i>|</i>|</div>)', '', i)
                             search = re.search(castles + '.+ \+(\d+) 🏆 очков', castle_tr)
@@ -205,37 +244,85 @@ def checker():
                                 if castle == '☘️':
                                     castle = '☘'
                                 final += '<i>' + castle + str(reports.get(castle)) + ' +' + search.group(2) + '🏆</i>\n'
-
-                        if final != '':
-                            letter = title + final + \
-                                     '<a href="' + adress + str(post) + '">Битва</a> ' + timer(time_search)
+                        if stamper(date) > stamper(lastdate):
+                            if final != '':
+                                letter = title + final + \
+                                         '<a href="' + adress + str(post) + '">Битва</a> <i>' + date + '</i>'
+                                sender(letter, date, 'main')
+                                stamp_checker = int(datetime.now().timestamp())
+                            else:
+                                letter = 'Ошибка, нет текста сообщения'
+                                bot.send_message(idMe, letter, parse_mode='HTML', disable_web_page_preview=True)
                         else:
-                            letter = 'Ошибка, нет текста сообщения'
-                            bot.send_message(idMe, letter, parse_mode='HTML', disable_web_page_preview=True)
-                        try:
-                            bot.send_message(idChannel, letter, parse_mode='HTML', disable_web_page_preview=True)
-                            sleep(4)
+                            print('пост ' + adress + str(post) + ' уже был, пропускаю')
                             post += 1
-                            try:
-                                start_editing = '<b>' + server + ':</b> <code>' + \
-                                                str(post) + '</code> :<b>' + server + '</b>'
-                                bot.edit_message_text(start_editing, -1001471643258, 4, parse_mode='HTML')
-                            except:
-                                error = '<b>Проблемы с измением стартового ' \
-                                        'сообщения на канале @UsefullCWLinks</b>\n\n' + letter
-                                bot.send_message(idMe, error, parse_mode='HTML', disable_web_page_preview=True)
-                        except:
-                            error = '<b>Проблемы с отправкой на канал, перезапускаю</b>\n\n' + letter
-                            bot.send_message(idMe, error, parse_mode='HTML', disable_web_page_preview=True)
-                            _thread.exit()
                     else:
-                        bot.send_message(idMe, 'Что-то пошло не так, проблемы с поиском инфы в посте, перезапускаю')
+                        bot.send_message(idMe, 'Проблемы с поиском инфы в посте, перезапускаю ' + adress + str(post))
                         _thread.exit()
                 else:
                     print('пост ' + adress + str(post) + ' не относится к дайджесту, пропускаю')
                     post += 1
             else:
+                stamp_checker = int(datetime.now().timestamp())
                 print('поста нет ' + adress + str(post))
+                text = requests.get(adress2 + str(mpost) + '?embed=1')
+                soup = BeautifulSoup(text.text, 'html.parser')
+                is_post_not_exist = str(soup.find('div', class_='tgme_widget_message_error'))
+                if str(is_post_not_exist) == 'None':
+                    print('работаю ' + adress2 + str(mpost))
+                    poster = str(soup.find('div', class_='tgme_widget_message_text js-message_text'))
+                    poster = re.sub(' (onclick|rel|target|dir|class|style)=\\"\w+[^\\"]+\\"', '', poster)
+                    poster = re.sub('(</a>|<b>|</b>|<i>|</i>|<div>|</div>)', '', poster)
+                    splited = re.split('<br/><br/>', poster)
+                    sv = None
+                    final = ''
+                    och = None
+                    link = None
+                    battle = None
+                    for i in splited:
+                        digest = re.search('⛳️Сводки с полей:<br/>(.*)', i)
+                        points = re.search('🏆Очки:<br/>(.*)', i)
+                        battle = re.search('(\d{2}) (.*) 10(\d{2}).*', i)
+                        if digest:
+                            sv = digest.group(1)
+                            sv = sv.split('<br/>')
+                        if points:
+                            och = points.group(1)
+                            och = och.split('<br/>')
+                        if battle:
+                            link = re.search(' href=\\"(\w+[^\\"]+)\\"', i)
+                    if battle:
+                        date = timer(battle)
+                        if stamper(date) > stamper(lastdate):
+                            if sv and date and link:
+                                final += title
+                                if link:
+                                    post = int(re.sub(adress, '', link.group(1))) + 1
+                                for i in sv:
+                                    cast = re.search('(.*): .*', i)
+                                    addition = ''
+                                    if cast:
+                                        for g in och:
+                                            search = re.search(cast.group(1) + '.*: \+(\d+)', g)
+                                            if search:
+                                                addition += ' +' + search.group(1) + '🏆'
+                                                break
+                                    final += '<i>' + i + addition + '</i>\n'
+                                final += '<a href="' + link.group(1) + '">Битва</a> <i>' + date + '</i>'
+                                sender(final, date, 'mini')
+                                stamp_checker = int(datetime.now().timestamp())
+                            else:
+                                bot.send_message(idMe, 'Проблемы с поиском инфы в посте ' + adress2 + str(mpost))
+                        else:
+                            print('пост ' + adress2 + str(mpost) + ' уже был, пропускаю')
+                            mpost += 1
+                    else:
+                        print('пост ' + adress2 + str(mpost) + ' не относится к дайджесту, пропускаю')
+                        mpost += 1
+                else:
+                    print('поста нет ' + adress2 + str(mpost))
+                    sleep(0.01)
+
         except IndexError:
             thread_name = 'checker'
             executive(thread_name)
@@ -250,8 +337,8 @@ def starter():
             print(thread_name + 'начало')
             now = int(datetime.now().timestamp()) - 100
             if now > stamp_checker:
-                _thread.start_new_thread(stamp_checker, ())
-                print('запуск stamp_checker')
+                _thread.start_new_thread(checker, ())
+                bot.send_message(idMe, 'Запуск checker')
             print(thread_name + 'конец')
             sleep(100)
         except IndexError:
