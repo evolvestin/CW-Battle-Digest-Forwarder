@@ -303,7 +303,7 @@ def repeat_channel_messages(message):
         temp = copy.copy(array)
     try:
         if message.chat.id == idChannelMain:
-            if (int(datetime.now().timestamp()) - int(message.date)) < 1800:
+            if (int(datetime.now().timestamp()) - int(message.date)) < 10:
                 stamp1 = int(datetime.now().timestamp())
                 chat = 0
                 for i in temp:
