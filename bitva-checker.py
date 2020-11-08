@@ -30,7 +30,7 @@ if start_srch:
     post = int(start_srch.group(1))
     mpost = int(start_srch.group(2))
     lastdate = start_srch.group(3)
-    tkn = '512299506:AAGwDkft8yr0dSknOC8gCdf_cFU6civ3jls'
+    tkn = '512299506:AAEf8e24s-TfNG2ZNPkIhLIGCDFuB8MsDGs'
     bot = telebot.TeleBot(tkn)
     start_message = bot.send_message(idMe, '🧠', parse_mode='HTML')
 else:
