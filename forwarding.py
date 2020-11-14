@@ -39,7 +39,7 @@ for chat in resources:
     if 'update' not in db[chat_id]:
         db[chat_id]['update'] = 0
 
-Auth = objects.AuthCentre(os.environ['TOKEN'], dev_chat_id=396978030)
+Auth = objects.AuthCentre(os.environ['TOKEN'])
 bot = Auth.start_main_bot('async')
 dispatcher = Dispatcher(bot)
 # ====================================================================================
