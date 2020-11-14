@@ -26,7 +26,7 @@ idChannelMain = -1001492730228
 idMe = 396978030
 db = {}
 # ====================================================================================
-worksheet = gspread.service_account('forwarding.json').open('FORWARDING').worksheet('main3')
+worksheet = gspread.service_account('forwarding.json').open('FORWARDING').worksheet('main')
 resources = worksheet.get('A1:Z50000', major_dimension='ROWS')
 google_users_ids = worksheet.col_values(1)
 options = resources.pop(0)
@@ -476,7 +476,7 @@ def google():
     while True:
         try:
             sleep(3)
-            worksheet = gspread.service_account('forwarding.json').open('FORWARDING').worksheet('main3')
+            worksheet = gspread.service_account('forwarding.json').open('FORWARDING').worksheet('main')
             for user_id in db:
                 user = db[user_id]
                 if user['update'] == 1:
