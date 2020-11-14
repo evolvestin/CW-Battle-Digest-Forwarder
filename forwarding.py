@@ -1,508 +1,510 @@
+import os
 import re
-import sys
-import copy
-import json
+import asyncio
+import objects
 import _thread
 import gspread
-import telebot
-import datetime
-import traceback
-import unicodedata
 from time import sleep
+from aiogram import types
 from datetime import datetime
-from unidecode import unidecode
-from collections import defaultdict
-from oauth2client.service_account import ServiceAccountCredentials
+from aiogram.utils import executor
+from aiogram.dispatcher import Dispatcher
+from objects import bold, code, html_link, html_secure
 
-stamp1 = int(datetime.now().timestamp())
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('forwarding.json', scope)
-client = gspread.authorize(creds)
-dater = client.open('FORWARDING').worksheet('main')
-tkn = '913645382:AAHJaL1PxvGQVkJcn7mLvhQzmQpxgBcfJpE'  # CWDailyBot (@CWDailyBot)
-bot = telebot.TeleBot(tkn)
-
-g_users = dater.col_values(1)
-g_ids = dater.col_values(2)
-g_block = dater.col_values(3)
-g_users.pop(0)
-g_ids.pop(0)
-g_block.pop(0)
-
-idChannelForward = -1001449490549
-idChannelMedia = -1001273330143
-idChannelMain = -1001492730228
-idChannelDump = -1001200576139
-array = defaultdict(dict)
-botname = 'CWDailyBot'
+stamp1 = objects.time_now()
+objects.environmental_files()
+search_block_pattern = 'initiate conversation with a user|user is deactivated|Have no rights' \
+                       '|The group has been migrated|bot was kicked from the supergroup chat' \
+                       '|bot was blocked by the user|Chat not found|bot was kicked from the group chat'
+media_contents = ['photo', 'document', 'animation', 'voice', 'audio', 'video', 'video_note',
+                  'dice', 'poll', 'sticker', 'location', 'contact', 'new_chat_photo', 'game']
+red_contents = [*media_contents, 'new_chat_members', 'left_chat_member', 'new_chat_title', 'delete_chat_photo',
+                'group_chat_created', 'migrate_to_chat_id', 'migrate_from_chat_id', 'pinned_message']
+idChannelForward = -1001449490549#-1001449490549
+idChannelMedia = -1001320851133#-1001273330143
+idChannelDump = 396978030#-1001200576139
+idChannelMain = -1001161297046#-1001492730228
 idMe = 396978030
-server = 'CW3'
-
-to_chat = '<code>//</code><b>Promote bot to admin just in case and press:</b>\n' \
-          '<code>//</code><b>Дайте боту права администратора на всякий случай и нажмите:</b>\n' \
-          '/reg@' + botname
-
-for i in g_ids:
-    array[int(i)] = defaultdict(dict)
-    array[int(i)]['name'] = g_users[g_ids.index(i)]
-    array[int(i)]['block'] = g_block[g_ids.index(i)]
-    array[int(i)]['update'] = 0
+db = {}
 # ====================================================================================
+worksheet = gspread.service_account('forwarding.json').open('FORWARDING').worksheet('main3')
+resources = worksheet.get('A1:Z50000', major_dimension='ROWS')
+google_users_ids = worksheet.col_values(1)
+options = resources.pop(0)
+options.pop(0)
+for chat in resources:
+    chat_id = int(chat.pop(0))
+    db[chat_id] = {}
+    for option in options:
+        db[chat_id][option] = chat[options.index(option)]
+    if 'update' not in db[chat_id]:
+        db[chat_id]['update'] = 0
 
-
-def logtime(stamp):
-    if stamp == 0:
-        stamp = int(datetime.now().timestamp())
-    weekday = datetime.utcfromtimestamp(int(stamp + 3 * 60 * 60)).strftime('%a')
-    if weekday == 'Mon':
-        weekday = 'Пн'
-    elif weekday == 'Tue':
-        weekday = 'Вт'
-    elif weekday == 'Wed':
-        weekday = 'Ср'
-    elif weekday == 'Thu':
-        weekday = 'Чт'
-    elif weekday == 'Fri':
-        weekday = 'Пт'
-    elif weekday == 'Sat':
-        weekday = 'Сб'
-    elif weekday == 'Sun':
-        weekday = 'Вс'
-    day = datetime.utcfromtimestamp(int(stamp + 3 * 60 * 60)).strftime('%d')
-    month = datetime.utcfromtimestamp(int(stamp + 3 * 60 * 60)).strftime('%m')
-    year = datetime.utcfromtimestamp(int(stamp + 3 * 60 * 60)).strftime('%Y')
-    hours = datetime.utcfromtimestamp(int(stamp + 3 * 60 * 60)).strftime('%H')
-    minutes = datetime.utcfromtimestamp(int(stamp)).strftime('%M')
-    seconds = datetime.utcfromtimestamp(int(stamp)).strftime('%S')
-    data = '<code>' + str(weekday) + ' ' + str(day) + '.' + str(month) + '.' + str(year) + \
-           ' ' + str(hours) + ':' + str(minutes) + ':' + str(seconds) + '</code> '
-    return data
-
-
-start_message = bot.send_message(idMe, logtime(stamp1) + '\n' + logtime(0), parse_mode='HTML')
+Auth = objects.AuthCentre(os.environ['TOKEN'], dev_chat_id=396978030)
+bot = Auth.start_main_bot('async')
+dispatcher = Dispatcher(bot)
 # ====================================================================================
+start_message = Auth.start_message(stamp1)
 
 
-def executive(e, name, message):
-    if message != 0:
-        text = ''
-        for character in message:
-            replaced = unidecode(str(character))
-            if replaced != '':
-                text += replaced
+def hour():
+    return int(datetime.utcfromtimestamp(int(objects.time_now()) + 3 * 60 * 60).strftime('%H'))
+
+
+def header(sign, date=None, custom_text=''):
+    sign = dict(sign)
+    full_head = ''
+    response = ''
+    if date:
+        response += objects.log_time(date, code) + custom_text
+    if sign.get('first_name'):
+        full_head += sign['first_name'] + ' '
+    if sign.get('last_name'):
+        full_head += sign['last_name'] + ' '
+    if sign.get('title'):
+        full_head += sign['title'] + ' '
+    full_name = full_head
+    full_head += '[@'
+    if sign.get('username'):
+        full_head += sign['username'] + '] '
+        true_username = sign['username']
+    else:
+        true_username = 'None'
+        full_head += '] '
+    response += html_secure(full_head) + code(sign['id']) + ':'
+    full_name = re.sub('\'', '&#39;', full_name.strip())
+    return response, html_secure(full_name), true_username
+
+
+async def log_data(message):
+    text = ''
+    space = ''
+    media_link = 'https://t.me/'
+    user = db.get(message['chat']['id'])
+    head, name, username = header(message['chat'], dict(message).get('date'))
+
+    if user:
+        if name != user['name'] or username != user['username'] or user['blocked'] == '🅾️':
+            user['name'] = name
+            user['update'] = 1
+            user['username'] = username
+            if user['blocked'] == '🅾️':
+                user['blocked'] = '♿'
+
+    if message['chat']['id'] < 0 and message['from']:
+        space = '     '
+        head_name, name, username = header(message['from'])
+        head += '\n' + space + '👤 ' + head_name
+
+    if message['forward_from'] or message['forward_from_chat']:
+        f_message = await bot.forward_message(idChannelForward, message['chat']['id'], message['message_id'])
+        forward = message['forward_from']
+        forward_space = space
+        f_link = media_link
+        space += '     '
+        if message['forward_from_chat']:
+            forward = message['forward_from_chat']
+        if f_message['chat']['username']:
+            f_link += f_message['chat']['username']
+        else:
+            f_link += 'c/' + re.sub('-100', '', str(f_message['chat']['id']))
+        f_link = ' ' + html_link(f_link + '/' + str(f_message['message_id']), 'Форвард') + ' от '
+        head_name, name, username = header(forward, dict(message).get('forward_date'), '\n' + space)
+        head += '\n' + forward_space + code('&#62;&#62;') + f_link + head_name
+
+    head = '\n' + head + '\n' + space + code('&#62;&#62;') + ' '
+    space += '      '
+
+    if message['text'] or message['caption']:
+        if message['text']:
+            text_list = list(html_secure(message['text']))
+            entities = message['entities']
+        else:
+            text_list = list(html_secure(message['caption']))
+            entities = message['caption_entities']
+            text += '\n'
+        if entities:
+            position = 0
+            used_offsets = []
+            for i in text_list:
+                true_length = len(i.encode('utf-16-le')) // 2
+                while true_length > 1:
+                    text_list.insert(position + 1, '')
+                    true_length -= 1
+                position += 1
+            for i in reversed(entities):
+                end_index = i.offset + i.length - 1
+                if i.offset + i.length >= len(text_list):
+                    end_index = len(text_list) - 1
+                if i.type != 'mention':
+                    tag = 'code'
+                    if i.type == 'bold':
+                        tag = 'b'
+                    elif i.type == 'italic':
+                        tag = 'i'
+                    elif i.type == 'text_link':
+                        tag = 'a'
+                    elif i.type == 'underline':
+                        tag = 'u'
+                    elif i.type == 'strikethrough':
+                        tag = 's'
+                    if i.offset + i.length not in used_offsets or i.type == 'text_link':
+                        text_list[end_index] += '</' + tag + '>'
+                        if i.type == 'text_link':
+                            tag = 'a href="' + i.url + '"'
+                        text_list[i.offset] = '<' + tag + '>' + text_list[i.offset]
+                        used_offsets.append(i.offset + i.length)
+        text += ''.join(text_list)
+        text = re.sub('\n', '\n' + space, text)
+
+    if message['pinned_message']:
+        text += bold('Запинил сообщение:')
+        pinned = await log_data(message['pinned_message'])
+        text += re.sub('\n', '\n' + space, pinned)
+
+    if message['new_chat_title']:
+        text += bold('Изменил название чата')
+    elif message['delete_chat_photo']:
+        text += bold('Удалил аватарку чата')
+    elif message['group_chat_created']:
+        text += bold('Создал группу')
+    elif message['migrate_to_chat_id']:
+        text += bold('Последнее сообщение в чате. Группа стала супергруппой:\n') + space + \
+            'Новый ID:' + code(' ' + str(message['migrate_to_chat_id']))
+    elif message['migrate_from_chat_id']:
+        text += bold('Создана супергруппа.\n') + space + \
+            'Старый ID:' + code(' ' + str(message['migrate_from_chat_id']))
+    elif message['new_chat_members'] or message['left_chat_member']:
+        members = []
+        if message['left_chat_member']:
+            member = dict(message['left_chat_member'])
+            member['left'] = True
+            members.append(member)
+        else:
+            for member in message['new_chat_members']:
+                members.append(dict(member))
+        for member in members:
+            for attr in ['first_name', 'last_name', 'username']:
+                if member.get(attr) is None:
+                    member[attr] = None
+            if member.get('left'):
+                if message['from']['id'] == member['id']:
+                    text += bold('Вышел из чата')
+                else:
+                    text += bold('Кикнул {} из чата')
+            else:
+                if message['from']['id'] == member['id']:
+                    text += bold('Зашел в чат по ссылке')
+                else:
+                    text += bold('Добавил {} в чат')
+            if message['from']['id'] != member['id']:
+                head_name, name, username = header(member)
+                if member['is_bot'] is True:
+                    emoji = '🤖 '
+                    text = text.format('бота')
+                    if username == str(Auth.get_me.get('username')):
+                        text += ' #Я'
+                else:
+                    emoji = '👤 '
+                    text = text.format('пользователя')
+                text += '\n' + space + emoji + head_name[:-1]
+
+    for message_type in media_contents:
+        if message[message_type]:
+            postfix = ''
+            caption = re.sub('\n' + space, '\n', text)
+            text = 'Прислал #медиа в виде {}{}' + text
+            if message['caption']:
+                postfix += ' с подписью:'
+            if message['forward_from_chat']:
+                channel = message['forward_from_chat']
+                text += '\n' + space + 'https://t.me/' + str(channel['username']) + '/' + \
+                    str(message['forward_from_message_id'])
+
+            if message_type == 'photo':
+                doc_type = bold('ФОТКИ') + ' #фото'
+                file_id = message['photo'][len(message['photo']) - 1]['file_id']
+                media = await bot.send_photo(idChannelMedia, file_id, caption, parse_mode='HTML')
+
+            elif message_type == 'document':
+                file_id = message['document']['file_id']
+                doc_type = bold('ДОКУМЕНТА') + ' #документ'
+                media = await bot.send_document(idChannelMedia, file_id, caption=caption, parse_mode='HTML')
+
+            elif message_type == 'animation':
+                doc_type = bold('ГИФКИ') + ' #гифка'
+                file_id = message['animation']['file_id']
+                media = await bot.send_document(idChannelMedia, file_id, caption=caption, parse_mode='HTML')
+
+            elif message_type == 'voice':
+                doc_type = bold('ВОЙСА') + ' #войс'
+                file_id = message['voice']['file_id']
+                media = await bot.send_voice(idChannelMedia, file_id, caption, parse_mode='HTML')
+
+            elif message_type == 'audio':
+                doc_type = bold('АУДИО') + ' #аудио'
+                file_id = message['audio']['file_id']
+                media = await bot.send_audio(idChannelMedia, file_id, caption, parse_mode='HTML')
+
+            elif message_type == 'video':
+                doc_type = bold('ВИДЕО') + ' #видео'
+                file_id = message['video']['file_id']
+                media = await bot.send_video(idChannelMedia, file_id, caption=caption, parse_mode='HTML')
+
+            elif message_type == 'video_note':
+                file_id = message['video_note']['file_id']
+                doc_type = bold('ВИДЕО-СООБЩЕНИЯ') + ' #видеосообщение'
+                media = await bot.send_video_note(idChannelMedia, file_id)
+
+            elif message_type == 'dice':
+                doc_type = bold('ИГРАЛЬНОЙ КОСТИ') + ' #кость #dice'
+                media = await bot.forward_message(idChannelMedia, message['chat']['id'], message['message_id'])
+
+            elif message_type == 'poll':
+                doc_type = bold('ГОЛОСОВАНИЯ')
+                if message['poll']['type'] == 'quiz':
+                    doc_type = bold('КВИЗА')
+                doc_type += ' #голосование #квиз'
+                media = await bot.forward_message(idChannelMedia, message['chat']['id'], message['message_id'])
+
+            elif message_type == 'sticker':
+                file_id = message['sticker']['file_id']
+                doc_type = bold('СТИКЕРА') + ' #стикер'
+                text += '\n' + space + 'https://t.me/addstickers/' + str(message['sticker']['set_name'])
+                media = await bot.send_sticker(idChannelMedia, file_id)
+
+            elif message_type == 'location':
+                doc_type = bold('АДРЕСА') + ' #адрес'
+                file_id = message['location']['latitude'], message['location']['longitude']
+                media = await bot.send_location(idChannelMedia, *file_id)
+
+            elif message_type == 'contact':
+                doc_type = bold('КОНТАКТА') + ' #контакт'
+                name = message['contact']['first_name']
+                if message['contact']['last_name']:
+                    name += message['contact']['last_name']
+                if message['contact']['user_id']:
+                    text += '\n' + space + 'ID пользователя: ' + code(message['contact']['user_id'])
+                media = await bot.forward_message(idChannelMedia, message['chat']['id'], message['message_id'])
+
+            elif message_type == 'new_chat_photo':
+                doc_type = 'новой ' + bold('АВАТАРКИ') + ' чата #фото #ава'
+                head_name, name, username = header(message['chat'])
+                caption = 'Новая #аватарка в чате:\n' + head_name[:-1]
+                file_id = message['new_chat_photo'][len(message['new_chat_photo']) - 1]['file_id']
+                media = await bot.send_photo(idChannelMedia, file_id, caption, parse_mode='HTML')
+
+            elif message_type == 'game':
+                doc_type = bold('ИГРЫ') + ' #игра #game'
+                media = await bot.forward_message(idChannelMedia, message['chat']['id'], message['message_id'])
+            else:
+                doc_type = 'None'
+                media = message
+
+            if media['chat']['username']:
+                media_link += media['chat']['username']
+            else:
+                media_link += 'c/' + re.sub('-100', '', str(media['chat']['id']))
+            reply_text, name, username = header(Auth.get_me)
+            media_link += '/' + str(media['message_id'])
+            text = text.format(doc_type, postfix)
+            text += '\n' + space + media_link
+            reply_text += head + text
+            await bot.send_message(idChannelMedia, reply_text, disable_web_page_preview=True,
+                                   reply_to_message_id=media['message_id'], parse_mode='HTML')
+    return head + text
+
+
+async def sender(message, text=None, log_text=''):
+    if text:
+        try:
+            await bot.send_message(message['chat']['id'], text, disable_web_page_preview=True, parse_mode='HTML')
+        except IndexError and Exception as error:
+            search_retry = re.search(r'Retry in (\d+) seconds', str(error))
+            search_block = re.search(search_block_pattern, str(error))
+            if search_retry:
+                await asyncio.sleep(int(search_retry.group(1)) + 1)
+                await sender(message, text, log_text='False')
+            elif search_block:
+                db[message['chat']['id']]['blocked'] = '🅾️'
+                db[message['chat']['id']]['update'] = 1
+                if log_text != 'False':
+                    log_text += bold(' [Не доставлено]')
+            else:
+                error_text = 'Not delivered: ' + str(message['chat']['id']) + '\n' + str(error) + '\n'
+                error_text += 'len(re.sub(<.*?>, text)) = ' + str(len(re.sub('<.*?>', '', text)))
+                error_text += 'len(text) = ' + str(len(str(text))) + '\n'
+                await Auth.async_exec(error_text + str(text))
+    if log_text != 'False':
+        try:
+            logs = await log_data(message)
+        except IndexError and Exception as error:
+            search_retry = re.search(r'Retry in (\d+) seconds', str(error))
+            logs = False
+            if search_retry:
+                await asyncio.sleep(int(search_retry.group(1)) + 1)
+                await sender(message, log_text)
+            else:
+                await Auth.async_exec(str(error))
+        if logs:
+            logs += log_text
+            if len(re.sub('<.*?>', '', logs)) <= 4096:
+                await bot.send_message(idChannelDump, logs, disable_web_page_preview=True, parse_mode='HTML')
             else:
                 try:
-                    text += '[' + unicodedata.name(character) + ']'
-                except ValueError:
-                    text += '[???]'
-        docw = open(name + '.json', 'w')
-        docw.write(text)
-        docw.close()
-        doc = open(name + '.json', 'rb')
-        bot.send_document(idMe, doc)
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    error_raw = traceback.format_exception(exc_type, exc_value, exc_traceback)
-    error = ''
-    for i in error_raw:
-        error += str(i)
+                    for factor in range(0, 2):
+                        temp_text = logs[factor * 4096:(factor + 1) * 4096]
+                        if temp_text:
+                            await bot.send_message(idChannelDump, temp_text,
+                                                   disable_web_page_preview=True, parse_mode='HTML')
+                except IndexError and Exception as error:
+                    await Auth.async_exec(str(error))
+
+
+@dispatcher.channel_post_handler()
+async def repeat_channel_messages(message: types.Message):
+    print(message)
+    global start_message
     try:
-        jsoner = json.loads(str(e))
-        bot.send_message(idMe, 'Вылет ' + name + '\n' + error)
-        if 'error' in jsoner:
-            if jsoner['error']['status'] == 'RESOURCE_EXHAUSTED':
-                sleep(100)
-            elif jsoner['error']['status'] == 'UNAVAILABLE' or jsoner['error']['status'] == 'UNAUTHENTICATED':
-                sleep(20)
-    except:
-        bot.send_message(idMe, 'Вылет ' + name + '\n' + error)
-    if message == 0:
-        _thread.exit()
+        if message['chat']['id'] == idChannelMain:
+            search = re.search(r'Битва (\d{2}/\d{2}/\d{4} \d{2}:\d{2})', message['text'])
+            if search:
+                battle_stamp = objects.stamper(search.group(1), '%d/%m/%Y %H:%M')
+                print(objects.log_time(battle_stamp - 3 * 60 * 60))
+                print(objects.log_time(objects.time_now()))
 
-
-def logdata(message):
-    stamp = int(datetime.now().timestamp())
-    data = logtime(stamp)
-    pr = ''
-    if message != 0:
-        data = logtime(message.date)
-        if message.chat.id in array:
-            if str(array[message.chat.id]['block']) == '🅾️':
-                array[message.chat.id]['block'] = '⚠️'
-                array[message.chat.id]['update'] = 1
-        try:
-            kind = message.chat
-            if message.chat.id < 0:
-                kind = message.from_user
-        except:
-            kind = message.from_user
-        firstname = ''
-        lastname = ''
-        username = ''
-        if kind.first_name:
-            firstname = str(kind.first_name) + ' '
-        if kind.last_name:
-            lastname = str(kind.last_name) + ' '
-        if kind.username:
-            username = str(kind.username)
-        if message.chat.id < 0:
-            title = ''
-            chat_user = ''
-            if message.chat.title:
-                title = str(message.chat.title) + ' '
-                title = re.sub('[<>]', '', title)
-                if message.chat.id in array:
-                    if str(array[message.chat.id]['name']) != message.chat.title:
-                        array[message.chat.id]['name'] = message.chat.title
-                        array[message.chat.id]['update'] = 1
-            if message.chat.username:
-                chat_user = str(message.chat.username)
-            chat_id = str(message.chat.id)
-            chat = title + '[@' + chat_user + '] <code>' + chat_id + '</code>:\n     👤 '
-            tl = '     '
-            pr = '     '
+            if (objects.time_now() - dict(message).get('date')) < 1800:
+                begin_stamp = objects.time_now()
+                send_pointer = 0
+                for user_id in db:
+                    if db[user_id]['blocked'] != '🅾️':
+                        try:
+                            await bot.forward_message(user_id, idChannelMain, message['message_id'])
+                            send_pointer += 1
+                        except IndexError and Exception as error:
+                            search_retry = re.search(r'Retry in (\d+) seconds', str(error))
+                            search_block = re.search(search_block_pattern, str(error))
+                            if search_retry:
+                                await asyncio.sleep(int(search_retry.group(1)) + 1)
+                                await bot.forward_message(user_id, idChannelMain, message['message_id'])
+                            elif search_block:
+                                db[user_id]['blocked'] = '🅾️'
+                                db[user_id]['update'] = 1
+                            else:
+                                error_text = 'Not delivered: ' + str(message['chat']['id']) + '\n' + str(error) + '\n'
+                                await Auth.async_exec(error_text)
+                end_stamp = objects.time_now()
+                text = bold('\n\nОтправка сводок:\n1.') + objects.log_time(begin_stamp, code) + \
+                    bold('\n' + str(send_pointer) + '. ') + objects.log_time(end_stamp, code)
+                start_message = Auth.edit_dev_message(start_message, text)
         else:
-            name = '@'
-            if message.chat.username:
-                name += message.chat.username
-            if message.chat.id in array:
-                if str(array[message.chat.id]['name']) != username:
-                    array[message.chat.id]['name'] = name
-                    array[message.chat.id]['update'] = 1
-            chat = ''
-            pr = ''
-            tl = ''
-        if message.forward_from:
-            fw_data = logtime(message.forward_date)
-            forw = message.forward_from
-            fw_firstname = ''
-            fw_lastname = ''
-            fw_username = ''
-            if forw.first_name:
-                fw_firstname = str(forw.first_name) + ' '
-            if forw.last_name:
-                fw_lastname = str(forw.last_name) + ' '
-            if forw.username:
-                fw_username = str(forw.username)
-            pr = pr + '     '
-            bot.forward_message(idChannelForward, message.chat.id, message.message_id)
-            cleared_fw_names = re.sub('[<>]', '', fw_firstname + fw_lastname + '[@' + fw_username + ']')
-            forward = '<code>&#62;&#62;</code> Форвард от ' + fw_data + '\n' + pr \
-                      + cleared_fw_names + ' <code>' + str(forw.id) + '</code>:\n'
-
-        elif message.forward_from_chat:
-            fw_data = logtime(message.forward_date)
-            forw = message.forward_from_chat
-            fw_title = ''
-            fw_username = ''
-            if forw.title:
-                fw_title = forw.title + ' '
-                fw_title = re.sub('[<>]', '', fw_title)
-            if forw.username:
-                fw_username = str(forw.username)
-            pr = pr + '     '
-            bot.forward_message(idChannelForward, message.chat.id, message.message_id)
-            forward = '<code>&#62;&#62;</code> Форвард от ' + fw_data + '\n' + pr \
-                      + fw_title + '[@' + fw_username + '] <code>' + str(forw.id) + '</code>:\n'
-        else:
-            forward = ''
-            pr = ''
-
-        cleared_names = re.sub('[<>]', '', firstname + lastname + '[@' + username + ']')
-        data = '\n' + data + chat + cleared_names + ' <code>' + \
-               str(kind.id) + '</code>:\n' + tl + forward + pr + '<code>&#62;&#62;</code> '
-
-        if message.photo:
-            data = data + 'Прислал #медиа в виде <b>ФОТКИ</b> #фото'
-            sup = node(message, data, pr)
-            data = sup[0]
-            pin = bot.send_photo(idChannelMedia, message.photo[len(message.photo) - 1].file_id, sup[1])
-            data = data + '\n' + sup[2] + 'https://t.me/' + pin.chat.username + '/' + str(pin.message_id)
-            bot.send_message(idChannelMedia, server, reply_to_message_id=pin.message_id)
-
-        elif message.document:
-            doc = '<b>ДОКУМЕНТА</b> #документ'
-            if message.document.mime_type == 'video/mp4':
-                doc = '<b>ГИФКИ</b> #гифка'
-            data = data + 'Прислал #медиа в виде ' + doc
-            sup = node(message, data, pr)
-            data = sup[0]
-            pin = bot.send_document(idChannelMedia, message.document.file_id, sup[1])
-            data = data + '\n' + sup[2] + 'https://t.me/' + pin.chat.username + '/' + str(pin.message_id)
-            bot.send_message(idChannelMedia, server, reply_to_message_id=pin.message_id)
-
-        elif message.voice:
-            data = data + 'Прислал #медиа в виде <b>ВОЙСА</b> #войса'
-            sup = node(message, data, pr)
-            data = sup[0]
-            pin = bot.send_voice(idChannelMedia, message.voice.file_id, sup[1])
-            data = data + '\n' + sup[2] + 'https://t.me/' + pin.chat.username + '/' + str(pin.message_id)
-            bot.send_message(idChannelMedia, server, reply_to_message_id=pin.message_id)
-
-        elif message.audio:
-            data = data + 'Прислал #медиа в виде <b>АУДИО</b> #аудио'
-            sup = node(message, data, pr)
-            data = sup[0]
-            pin = bot.send_audio(idChannelMedia, message.audio.file_id, sup[1])
-            data = data + '\n' + sup[2] + 'https://t.me/' + pin.chat.username + '/' + str(pin.message_id)
-            bot.send_message(idChannelMedia, server, reply_to_message_id=pin.message_id)
-
-        elif message.video:
-            data = data + 'Прислал #медиа в виде <b>ВИДЕО</b> #видео'
-            sup = node(message, data, pr)
-            data = sup[0]
-            pin = bot.send_video(idChannelMedia, message.video.file_id, sup[1])
-            data = data + '\n' + sup[2] + 'https://t.me/' + pin.chat.username + '/' + str(pin.message_id)
-            bot.send_message(idChannelMedia, server, reply_to_message_id=pin.message_id)
-
-        elif message.sticker:
-            data = data + 'Прислал #медиа в виде <b>СТИКЕРА</b> #стикер'
-            sup = node(message, data, pr)
-            data = sup[0]
-            pin = bot.send_sticker(idChannelMedia, message.sticker.file_id, sup[1])
-            data = data + '\n' + sup[2] + 'https://t.me/' + pin.chat.username + '/' + str(pin.message_id)
-            bot.send_message(idChannelMedia, server, reply_to_message_id=pin.message_id)
-
-        elif message.video_note:
-            data = data + 'Прислал #медиа в виде <b>ВИДЕО-СООБЩЕНИЯ</b> #видеосообщение'
-            sup = node(message, data, pr)
-            data = sup[0]
-            pin = bot.send_video_note(idChannelMedia, message.video_note.file_id, sup[1])
-            data = data + '\n' + sup[2] + 'https://t.me/' + pin.chat.username + '/' + str(pin.message_id)
-            bot.send_message(idChannelMedia, server, reply_to_message_id=pin.message_id)
-    massive = [data, '\n      ' + pr]
-    return massive
+            if db.get(message['chat']['id']):
+                await sender(message)
+            else:
+                await first_start(message, send_text=False)
+                await sender(message, '✅', log_text='False')
+    except IndexError and Exception:
+        await Auth.async_exec(str(message))
 
 
-def node(message, data, pr):
-    sp = '      '
-    if message.chat.id < 0:
-        sp = sp + '     '
-    if message.forward_from:
-        sp = sp + '     '
-    if message.caption:
-        cap = str(message.caption)
-        pr = pr + '     '
-        data = data + ' с припиской:\n' + pr + '<code>---------------</code>\n' + pr + '   ' \
-            + str(message.caption) + '\n' + pr + '<code>---------------</code>' + pr
+async def first_start(message, send_text=True):
+    eng_description = 'Promote bot to admin just in case. Chat already subscribed to new battle digests.'
+    rus_description = 'Дайте боту права администратора на всякий случай. Чат уже добавлен в рассылку.'
+    text = code('//') + bold(eng_description + '\n') + code('//') + bold(rus_description + '\n')
+    head, name, username = header(message['chat'])
+    log_text = ''
+    if message['chat']['id'] not in db:
+        log_text = bold(' [Впервые]')
+        db[message['chat']['id']] = {
+            'name': name,
+            'username': username,
+            'blocked': '✅',
+            'update': 1}
+    if send_text:
+        await sender(message, text, log_text)
     else:
-        cap = None
-    if message.forward_from_chat:
-        sp = sp + '     '
-        fors = message.forward_from_chat
-        data = data + '\n' + sp + 'https://t.me/' + str(fors.username) + '/' + str(message.forward_from_message_id)
-    array = [data, cap, sp]
-    return array
+        await sender(message, log_text=log_text)
 
 
-@bot.channel_post_handler(func=lambda message: message.text)
-def repeat_channel_messages(message):
+@dispatcher.message_handler(content_types=red_contents)
+async def red_messages(message: types.Message):
     try:
-        temp = copy.copy(array)
-    except:
-        sleep(2)
-        temp = copy.copy(array)
-    try:
-        if message.chat.id == idChannelMain:
-            if (int(datetime.now().timestamp()) - int(message.date)) < 1800:
-                stamp1 = int(datetime.now().timestamp())
-                chat = 0
-                for i in temp:
-                    try:
-                        if str(temp[i]['block']) == '✅' or str(temp[i]['block']) == '⚠️':
-                            bot.forward_message(i, idChannelMain, message.message_id)
-                            chat += 1
-                    except:
-                        array[i]['block'] = '🅾️'
-                        array[i]['update'] = 1
-                        logarray = logdata(0)
-                        logtext = logarray[0] + '<b>BOT</b> [@' + botname + ']:\n<code>&#62;&#62;</code> ' + \
-                            '<b>Не доставлено:</b> <code>' + str(i) + '</code> ' + str(temp[i]['name'])
-                        bot.send_message(idChannelDump, logtext, parse_mode='HTML')
-                stamp2 = int(datetime.now().timestamp())
-                bot.send_message(idMe, '<b>Отправка сводок:</b>\n<b>1.</b> ' + logtime(stamp1) + '\n<b>' +
-                                 str(chat) + '.</b> ' + logtime(stamp2), parse_mode='HTML')
-
-    except IndexError and Exception as e:
-        thread_name = 'repeat_channel_messages'
-        executive(e, thread_name, str(message))
-
-
-@bot.message_handler(commands=['reg'])
-def handle_reg_command(message):
-    try:
-        logtext = '/reg'
-        text = '✅'
-        if message.chat.id not in array:
-            name = 'None'
-            if message.chat.id > 0:
-                name = '@'
-                if message.chat.username:
-                    name = '@' + str(message.chat.username)
-            if message.chat.title:
-                name = str(message.chat.title)
-            name = re.sub('[<>]', '', name)
-            array[message.chat.id] = defaultdict(dict)
-            array[message.chat.id]['name'] = name
-            array[message.chat.id]['block'] = '✅'
-            array[message.chat.id]['update'] = 0
-            logtext += ' <b>[Впервые]</b>'
+        if message['new_chat_members']:
+            for member in message['new_chat_members']:
+                head_name, name, username = header(member)
+                if username == str(Auth.get_me.get('username')):
+                    await first_start(message)
+                else:
+                    await sender(message)
+        elif message['group_chat_created']:
+            await first_start(message)
+        elif message['migrate_from_chat_id']:
+            await asyncio.sleep(5)
+            await first_start(message, send_text=False)
+        elif message['migrate_to_chat_id']:
+            await sender(message)
+            user = db[message['chat']['id']]
+            user['username'] = 'DISABLED_GROUP'
+            user['blocked'] = '🅾️'
+            user['update'] = 1
         else:
-            text += '♿♿'
-        bot.send_message(message.chat.id, text, parse_mode='HTML')
-        logarray = logdata(message)
-        bot.send_message(idChannelDump, logarray[0] + logtext, parse_mode='HTML')
-    except IndexError and Exception as e:
-        thread_name = 'handle_reg_command'
-        executive(e, thread_name, str(message))
+            await sender(message)
+    except IndexError and Exception:
+        await Auth.async_exec(str(message))
 
 
-@bot.message_handler(commands=['start'])
-def handle_start_command(message):
+@dispatcher.message_handler()
+async def repeat_all_messages(message: types.Message):
     try:
-        logtext = '/start'
-        bot.send_message(message.chat.id, to_chat, parse_mode='HTML')
-        logarray = logdata(message)
-        bot.send_message(idChannelDump, logarray[0] + logtext, parse_mode='HTML')
-    except IndexError and Exception as e:
-        thread_name = 'handle_reg_command'
-        executive(e, thread_name, str(message))
+        if db.get(message['chat']['id']):
+            if message['chat']['id'] == idMe:
+                if message['text'].lower().startswith('/log'):
+                    await bot.send_document(message['chat']['id'], open('log.txt', 'rb'))
+                elif message['text'].lower().startswith('/h'):
+                    for i in db:
+                        print(str(i) + ':', db.get(i))
+                else:
+                    await sender(message)
+            elif message['text'].lower().startswith('/start'):
+                await first_start(message)
+            elif message['text'].lower().startswith('/reg'):
+                await sender(message, '✅')
+            else:
+                await sender(message)
+        else:
+            await first_start(message, send_text=False)
+    except IndexError and Exception:
+        await Auth.async_exec(str(message))
 
 
-@bot.message_handler(content_types=['new_chat_members'])
-def get_new_member(message):
-    try:
-        if message.new_chat_member is not None:
-            if message.new_chat_member.username == botname:
-                logtext = '<b>Добавил бота в чат</b> '
-                try:
-                    bot.send_message(message.chat.id, to_chat, parse_mode='HTML')
-                except:
-                    logtext = logtext + '<b>[Не отправлено]</b>'
-                logarray = logdata(message)
-                logtext = logarray[0] + logtext
-                bot.send_message(idChannelDump, logtext, parse_mode='HTML')
-    except IndexError and Exception as e:
-        thread_name = 'get_new_member'
-        executive(e, thread_name, str(message))
-
-
-@bot.message_handler(content_types=['audio', 'video_note', 'photo', 'video', 'document',
-                                    'location', 'contact', 'sticker', 'voice'])
-def redmessages(message):
-    try:
-        if message.chat.id != idChannelMedia:
-            if message.photo or message.document or message.voice or message.audio \
-                    or message.video or message.sticker or message.video_note:
-                logarray = logdata(message)
-                bot.send_message(idChannelDump, logarray[0], disable_web_page_preview=True, parse_mode='HTML')
-    except IndexError and Exception as e:
-        thread_name = 'redmessages'
-        executive(e, thread_name, str(message))
-
-
-@bot.message_handler(func=lambda message: message.text)
-def repeat_all_messages(message):
-    if message.chat.id == idMe:
-        if str(message.text).startswith('/log'):
-            try:
-                temps = copy.copy(array)
-            except:
-                sleep(2)
-                temps = copy.copy(array)
-            print(temps)
-            for i in temps:
-                print(str(i) + ': ' + str(temps[i]['name']) + ' [' + str(temps[i]['block']) + ']')
-    else:
-        try:
-            logarray = logdata(message)
-            logtext = re.sub('<', '&lt;', message.text)
-            logtext = re.sub('>', '&gt;', logtext)
-            logtext = re.sub('\n', logarray[1], logtext)
-            bot.send_message(idChannelDump, logarray[0] + logtext, parse_mode='HTML')
-        except IndexError and Exception as e:
-            thread_name = 'repeat_all_messages'
-            executive(e, thread_name, str(message))
-
-
-def creategooglerow():
+def google():
+    global google_users_ids, worksheet
     while True:
         try:
-            global dater
-            global stamp_creategooglerow
-            stamp_creategooglerow = int(datetime.now().timestamp())
-            sleep(5)
-            try:
-                temp = copy.copy(array)
-            except:
-                sleep(2)
-                temp = copy.copy(array)
-            try:
-                g_ids = dater.col_values(2)
-            except:
-                creds = ServiceAccountCredentials.from_json_keyfile_name('forwarding.json', scope)
-                client = gspread.authorize(creds)
-                dater = client.open('FORWARDING').worksheet('main')
-                g_ids = dater.col_values(2)
-            for i in temp:
-                if str(i) not in g_ids:
-                    stamp_creategooglerow = int(datetime.now().timestamp())
-                    dater.insert_row([str(temp[i]['name']), i, str(temp[i]['block'])], 4)
-                    sleep(5)
-
-            stamp_creategooglerow = int(datetime.now().timestamp())
-            g_ids = dater.col_values(2)
-            for i in temp:
-                if temp[i]['update'] == 1:
-                    stamp_creategooglerow = int(datetime.now().timestamp())
-                    row = str(g_ids.index(str(i)) + 1)
-                    try:
-                        cell_list = dater.range('A' + row + ':C' + row)
-                        cell_list[0].value = str(temp[i]['name'])
-                        cell_list[1].value = i
-                        cell_list[2].value = str(temp[i]['block'])
-                        dater.update_cells(cell_list)
-                        array[i]['update'] = 0
-                    except IndexError and Exception as e:
-                        thread_name = 'creategooglerow (шаг обновления)'
-                        executive(e, thread_name, 0)
-                    sleep(2)
-            sleep(1)
-
-        except IndexError and Exception as e:
-            thread_name = 'creategooglerow'
-            executive(e, thread_name, 0)
-
-
-def starter():
-    while True:
-        try:
-            sleep(200)
-            global stamp_creategooglerow
-            thread_name = 'starter '
-            print(thread_name + 'начало')
-            now = int(datetime.now().timestamp()) - 100
-            if now > stamp_creategooglerow:
-                _thread.start_new_thread(creategooglerow, ())
-                bot.send_message(idMe, 'запуск creategooglerow')
-                print('запуск creategooglerow')
-            print(thread_name + 'конец')
-            sleep(100)
-        except IndexError and Exception as e:
-            thread_name = 'creategooglerow'
-            executive(e, thread_name, 0)
-
-
-def telepol():
-    try:
-        bot.polling(none_stop=True, timeout=60)
-    except:
-        bot.stop_polling()
-        sleep(1)
-        telepol()
+            sleep(3)
+            worksheet = gspread.service_account('forwarding.json').open('FORWARDING').worksheet('main3')
+            for user_id in db:
+                user = db[user_id]
+                if user['update'] == 1:
+                    if str(user_id) in google_users_ids:
+                        row = str(google_users_ids.index(str(user_id)) + 1)
+                        print_text = ' обновлен '
+                    else:
+                        row = str(len(google_users_ids) + 1)
+                        google_users_ids.append(str(user_id))
+                        print_text = ' добавлен '
+                    user_range = worksheet.range('A' + row + ':D' + row)
+                    user_range[0].value = int(user_id)
+                    for i in range(1, len(user)):
+                        user_range[i].value = list(user.values())[i - 1]
+                    objects.printer('пользователь' + print_text + str(user_id))
+                    worksheet.update_cells(user_range)
+                    user['update'] = 0
+                    sleep(1)
+        except IndexError and Exception:
+            Auth.thread_exec()
 
 
 if __name__ == '__main__':
-    _thread.start_new_thread(creategooglerow, ())
-    _thread.start_new_thread(starter, ())
-    telepol()
-
+    _thread.start_new_thread(google, ())
+    executor.start_polling(dispatcher)
