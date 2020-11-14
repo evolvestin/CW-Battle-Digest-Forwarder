@@ -6,12 +6,11 @@ import _thread
 import gspread
 from time import sleep
 from aiogram import types
-from datetime import datetime
 from aiogram.utils import executor
 from aiogram.dispatcher import Dispatcher
-from objects import bold, code, html_link, html_secure
+from objects import bold, code, time_now, html_link, html_secure
 
-stamp1 = objects.time_now()
+stamp1 = time_now()
 objects.environmental_files()
 search_block_pattern = 'initiate conversation with a user|user is deactivated|Have no rights' \
                        '|The group has been migrated|bot was kicked from the supergroup chat' \
@@ -20,10 +19,10 @@ media_contents = ['photo', 'document', 'animation', 'voice', 'audio', 'video', '
                   'dice', 'poll', 'sticker', 'location', 'contact', 'new_chat_photo', 'game']
 red_contents = [*media_contents, 'new_chat_members', 'left_chat_member', 'new_chat_title', 'delete_chat_photo',
                 'group_chat_created', 'migrate_to_chat_id', 'migrate_from_chat_id', 'pinned_message']
-idChannelForward = -1001449490549#-1001449490549
-idChannelMedia = -1001320851133#-1001273330143
-idChannelDump = 396978030#-1001200576139
-idChannelMain = -1001161297046#-1001492730228
+idChannelForward = -1001449490549
+idChannelMedia = -1001273330143
+idChannelDump = -1001200576139
+idChannelMain = -1001492730228
 idMe = 396978030
 db = {}
 # ====================================================================================
@@ -45,10 +44,6 @@ bot = Auth.start_main_bot('async')
 dispatcher = Dispatcher(bot)
 # ====================================================================================
 start_message = Auth.start_message(stamp1)
-
-
-def hour():
-    return int(datetime.utcfromtimestamp(int(objects.time_now()) + 3 * 60 * 60).strftime('%H'))
 
 
 def header(sign, date=None, custom_text=''):
@@ -363,18 +358,18 @@ async def sender(message, text=None, log_text=''):
 
 @dispatcher.channel_post_handler()
 async def repeat_channel_messages(message: types.Message):
-    print(message)
     global start_message
     try:
         if message['chat']['id'] == idChannelMain:
+            is_message_actual_to_send = False
             search = re.search(r'Битва (\d{2}/\d{2}/\d{4} \d{2}:\d{2})', message['text'])
             if search:
-                battle_stamp = objects.stamper(search.group(1), '%d/%m/%Y %H:%M')
-                print(objects.log_time(battle_stamp - 3 * 60 * 60))
-                print(objects.log_time(objects.time_now()))
+                battle_stamp = objects.stamper(search.group(1), '%d/%m/%Y %H:%M') - 3 * 60 * 60
+                if (time_now() - battle_stamp) < 1800 and (time_now() - dict(message).get('date')) < 1800:
+                    is_message_actual_to_send = True
 
-            if (objects.time_now() - dict(message).get('date')) < 1800:
-                begin_stamp = objects.time_now()
+            if is_message_actual_to_send:
+                stamp = time_now()
                 send_pointer = 0
                 for user_id in db:
                     if db[user_id]['blocked'] != '🅾️':
@@ -393,9 +388,8 @@ async def repeat_channel_messages(message: types.Message):
                             else:
                                 error_text = 'Not delivered: ' + str(message['chat']['id']) + '\n' + str(error) + '\n'
                                 await Auth.async_exec(error_text)
-                end_stamp = objects.time_now()
-                text = bold('\n\nОтправка сводок:\n1.') + objects.log_time(begin_stamp, code) + \
-                    bold('\n' + str(send_pointer) + '. ') + objects.log_time(end_stamp, code)
+                text = bold('\n\nОтправка сводок:\n1.') + objects.log_time(stamp, code) + \
+                    bold('\n' + str(send_pointer) + '. ') + objects.log_time(time_now(), code)
                 start_message = Auth.edit_dev_message(start_message, text)
         else:
             if db.get(message['chat']['id']):
