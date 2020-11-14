@@ -19,10 +19,10 @@ media_contents = ['photo', 'document', 'animation', 'voice', 'audio', 'video', '
                   'dice', 'poll', 'sticker', 'location', 'contact', 'new_chat_photo', 'game']
 red_contents = [*media_contents, 'new_chat_members', 'left_chat_member', 'new_chat_title', 'delete_chat_photo',
                 'group_chat_created', 'migrate_to_chat_id', 'migrate_from_chat_id', 'pinned_message']
-idChannelForward = 396978030
-idChannelMedia = 396978030
-idChannelDump = 396978030
-idChannelMain = 396978030
+idChannelForward = -1001449490549
+idChannelMedia = -1001273330143
+idChannelDump = -1001200576139
+idChannelMain = -1001492730228
 idMe = 396978030
 db = {}
 # ====================================================================================
