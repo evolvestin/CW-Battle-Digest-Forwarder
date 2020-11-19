@@ -224,6 +224,9 @@ async def log_data(message):
             elif message_type == 'document':
                 file_id = message['document']['file_id']
                 doc_type = bold('ДОКУМЕНТА') + ' #документ'
+                if message['animation']:
+                    text = re.sub(r'Прислал #медиа в виде [{}]{4}', '', text, 1)
+                    continue
                 media = await bot.send_document(idChannelMedia, file_id, caption=caption, parse_mode='HTML')
 
             elif message_type == 'animation':
