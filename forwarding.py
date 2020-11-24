@@ -19,7 +19,7 @@ media_contents = ['photo', 'document', 'animation', 'voice', 'audio', 'video', '
                   'dice', 'poll', 'sticker', 'location', 'contact', 'new_chat_photo', 'game']
 red_contents = [*media_contents, 'new_chat_members', 'left_chat_member', 'new_chat_title', 'delete_chat_photo',
                 'group_chat_created', 'migrate_to_chat_id', 'migrate_from_chat_id', 'pinned_message']
-idChannelForward = -1001449490549
+idChannelForward = -1001252666919
 idChannelMedia = -1001273330143
 idChannelDump = -1001200576139
 idChannelMain = -1001492730228
@@ -397,7 +397,7 @@ async def repeat_channel_messages(message: types.Message):
         else:
             if db.get(message['chat']['id']):
                 await sender(message)
-            else:
+            elif message['chat']['id'] not in [idChannelMedia, idChannelDump, idChannelForward]:
                 await first_start(message, send_text=False)
                 await sender(message, '✅', log_text='False')
     except IndexError and Exception:
