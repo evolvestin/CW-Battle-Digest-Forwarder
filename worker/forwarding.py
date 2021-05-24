@@ -148,7 +148,13 @@ async def repeat_channel_messages(message: types.Message):
                 start_message = Auth.message(old_message=start_message, text=f"\n\nСводки {battle}:\n{text}")
         else:
             if str(message['chat']['id']) not in channels:
-                await sender(message, user=None, text=first_start(message), log_text=' [#Впервые]')
+                db = SQL(db_path)
+                text, log_text = None, None
+                user = db.get_user(message['chat']['id'])
+                if user is None:
+                    text, log_text = first_start(message), ' [#Впервые]'
+                await sender(message, user=None, text=text, log_text=log_text)
+                db.close()
     except IndexError and Exception:
         await Auth.dev.async_except(message)
 
