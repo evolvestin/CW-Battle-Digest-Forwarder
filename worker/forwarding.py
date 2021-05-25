@@ -36,7 +36,7 @@ objects.environmental_files()
 loop = asyncio.get_event_loop()
 os.makedirs('db', exist_ok=True)
 tz = timezone(timedelta(hours=3))
-Auth = objects.AuthCentre(LOG_DELAY=20,
+Auth = objects.AuthCentre(LOG_DELAY=120,
                           ID_DEV=-1001312302092,
                           TOKEN=os.environ.get('TOKEN'),
                           ID_DUMP=os.environ.get('ID_DUMP'),
@@ -248,9 +248,9 @@ def auto_reboot():
         try:
             sleep(30)
             date = datetime.now(tz)
-            if date.strftime('%H') == '00' and date.strftime('%M') == '59':
+            if date.strftime('%H') == '00' and date.strftime('%M') == '57':
                 reboot = True
-                while date.strftime('%M') == '59':
+                while date.strftime('%M') == '57':
                     sleep(1)
                     date = datetime.now(tz)
             if reboot:
