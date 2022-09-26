@@ -1,2 +1,6 @@
+aiogram==2.20
 gspread==3.6.0
-
+heroku3==5.1.4
+Unidecode==1.2.0
+pyTelegramBotAPI==4.5.1
+google-api-python-client==1.10.0
