@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 import sqlite3
-from objects import divide, stamper, time_now
+from functions import divide, stamper, time_now
 sql_patterns = ['database is locked', 'no such table']
 
 
