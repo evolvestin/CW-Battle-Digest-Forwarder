@@ -140,9 +140,9 @@ class SQL:
     def get_user(self, user_id):
         return self.request(f"SELECT * FROM users WHERE id = '{user_id}'", fetchone=True)
 
-    def get_users(self):
+    def get_users(self, lang: str):
         return self.request(f"SELECT * FROM users WHERE (reaction = '✅' OR reaction = '♿') "
-                            f"AND NOT id = 0 AND NOT id = 396978030")
+                            f"AND NOT id = 0 AND NOT id = 396978030 AND lang = '{lang}'")
 
     def create_user(self, user):
         user.update({'last_update': time_now(), 'updates': 1})
