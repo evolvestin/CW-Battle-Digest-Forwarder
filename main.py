@@ -242,26 +242,6 @@ def google_update():
             Auth.dev.thread_except()
 
 
-def auto_reboot():
-    global logging
-    reboot = None
-    while True:
-        try:
-            sleep(30)
-            date = datetime.now(tz)
-            if date.strftime('%H') == '23' and date.strftime('%M') == '57':
-                reboot = True
-                while date.strftime('%M') == '57':
-                    sleep(1)
-                    date = datetime.now(tz)
-            if reboot:
-                reboot = None
-                text, _ = Auth.logs.reboot(dispatcher)
-                Auth.dev.printer(text)
-        except IndexError and Exception:
-            Auth.dev.thread_except()
-
-
 def logger():
     global logging
     while True:
@@ -279,8 +259,8 @@ def start(stamp):
         threads = [logger, google_update]
         Auth.dev.printer(f'Запуск бота локально за {time_now() - stamp} сек.')
     else:
+        threads = [logger, google_update]
         start_message = Auth.dev.start(stamp)
-        threads = [logger, google_update, auto_reboot]
         Auth.dev.printer(f'Бот запущен за {time_now() - stamp} сек.')
 
     for thread_element in threads:
