@@ -38,10 +38,10 @@ Auth = functions.AuthCentre(LOG_DELAY=120,
                             DEV_TOKEN=os.environ.get('DEV_TOKEN'),
                             ID_FORWARD=os.environ.get('ID_FORWARD'))
 
+tz, logging = timezone(timedelta(hours=3)), []
 bot, dispatcher = Auth.async_bot, Dispatcher(Auth.async_bot)
 functions.environmental_files(), os.makedirs('db', exist_ok=True)
 zero_user, google_users_ids, users_columns = users_db_creation()
-tz, logging, start_message = timezone(timedelta(hours=3)), [], None
 channels = [os.environ.get(key) for key in ['ID_DUMP', 'ID_MEDIA', 'ID_FORWARD', 'ID_DIGEST_RU', 'ID_DIGEST_EN']]
 channels.extend([*os.environ.get('ID_LOGS').split(' '), str(Auth.dev.chat_id)])
 # =================================================================================================================
@@ -123,7 +123,6 @@ async def member_handler(message: types.ChatMember):
 
 @dispatcher.channel_post_handler()
 async def repeat_channel_messages(message: types.Message):
-    global start_message
     try:
         if str(message['chat']['id']) in [os.environ['ID_DIGEST_RU'], os.environ['ID_DIGEST_EN']]:
             lang = 'en' if str(message['chat']['id']) == os.environ['ID_DIGEST_EN'] else 'ru'
@@ -142,8 +141,9 @@ async def repeat_channel_messages(message: types.Message):
                 coroutines = [sender(message, user=user, func=bot.forward_message, id=user['id']) for user in users]
                 await asyncio.gather(*coroutines)
                 text = bold(chats_to_human(len(users), round(datetime.now(tz).timestamp() - stamp, 3)))
-                start_message = Auth.message(
-                    old_message=start_message, text=f"\n\nСводки {bold(lang.upper())} {battle}:\n{text}")
+                head, _, _ = Auth.logs.header(Auth.get_me)
+                logging.append(f'\n{Auth.time(tag=functions.code)} {head}'
+                               f'\nСводки {bold(lang.upper())} {battle}:\n{text}')
         else:
             if str(message['chat']['id']) not in channels:
                 db = SQL(db_path)
@@ -254,13 +254,12 @@ def logger():
 
 
 def start(stamp):
-    global start_message
     if os.environ.get('local'):
         threads = [logger, google_update]
         Auth.dev.printer(f'Запуск бота локально за {time_now() - stamp} сек.')
     else:
+        Auth.dev.start(stamp)
         threads = [logger, google_update]
-        start_message = Auth.dev.start(stamp)
         Auth.dev.printer(f'Бот запущен за {time_now() - stamp} сек.')
 
     for thread_element in threads:
